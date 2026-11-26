@@ -1,0 +1,6 @@
+{
+  "name": "Temple Security & Daily Inspection (성전 보안 관리)",
+  "description": "Bilingual (Es/Ko) temple security management application for daily door lock photo verification, lights-off inspection, Google Sheets cumulative logging, and Telegram Esdras bot reporting.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
