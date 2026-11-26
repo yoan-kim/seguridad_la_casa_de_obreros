@@ -18,15 +18,17 @@ import {
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import {
+  DateRosterEntry,
   DayOfWeekIndex,
   DEFAULT_WEEKLY_SCHEDULE,
+  getRecommendedInspectorForDate,
   INSPECTORS,
   InspectionLogEntry,
   InspectorName,
   Language,
+  OFFICIAL_DATE_ROSTER,
   PhotoSlotData,
   TRANSLATIONS,
-  WeeklySchedule,
 } from './i18n';
 import { PhotoUploadSlot } from './components/PhotoUploadSlot';
 import { WeeklyScheduleCard } from './components/WeeklyScheduleCard';
@@ -46,7 +48,7 @@ import {
 
 const STORAGE_KEYS = {
   LANG: 'temple_sec_lang_v1',
-  SCHEDULE: 'temple_sec_schedule_v1',
+  ROSTER: 'temple_sec_roster_2026_11_25_v2',
   LOGS: 'temple_sec_logs_v1',
   SHEET_ID: 'temple_sec_sheet_id_v1',
   WEBHOOK_URL: 'temple_sec_webhook_url_v1',
@@ -66,7 +68,7 @@ export default function App() {
     localStorage.setItem(STORAGE_KEYS.LANG, newLang);
   };
 
-  // 2. Date & Day-of-week schedule auto-recommendation
+  // 2. Date & Official Roster (2026. 11. 25 ~ 12. 08) auto-recommendation
   const now = new Date();
   const todayIndex = now.getDay() as DayOfWeekIndex;
   const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
@@ -74,17 +76,22 @@ export default function App() {
     '0'
   )}-${String(now.getDate()).padStart(2, '0')}`;
 
-  const [schedule, setSchedule] = useState<WeeklySchedule>(() => {
+  const [roster, setRoster] = useState<DateRosterEntry[]>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.SCHEDULE);
+      const saved = localStorage.getItem(STORAGE_KEYS.ROSTER);
       if (saved) return JSON.parse(saved);
     } catch {
       // ignore
     }
-    return DEFAULT_WEEKLY_SCHEDULE;
+    return OFFICIAL_DATE_ROSTER;
   });
 
-  const recommendedToday: InspectorName = schedule[todayIndex] || 'Daniel';
+  const recommendedToday: InspectorName = getRecommendedInspectorForDate(
+    formattedDate,
+    todayIndex,
+    roster,
+    DEFAULT_WEEKLY_SCHEDULE
+  );
 
   // 3. Inspection Form State
   const [selectedInspector, setSelectedInspector] = useState<InspectorName>(recommendedToday);
@@ -132,9 +139,9 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleUpdateSchedule = (newSchedule: WeeklySchedule) => {
-    setSchedule(newSchedule);
-    localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(newSchedule));
+  const handleUpdateRoster = (newRoster: DateRosterEntry[]) => {
+    setRoster(newRoster);
+    localStorage.setItem(STORAGE_KEYS.ROSTER, JSON.stringify(newRoster));
   };
 
   const handleSpreadsheetIdChange = (val: string) => {
@@ -732,11 +739,12 @@ export default function App() {
           <div id="weekly-schedule" className="lg:col-span-5 space-y-6">
             <WeeklyScheduleCard
               lang={lang}
-              schedule={schedule}
+              todayDateStr={formattedDate}
               todayIndex={todayIndex}
+              roster={roster}
               selectedInspector={selectedInspector}
               onSelectInspector={setSelectedInspector}
-              onUpdateSchedule={handleUpdateSchedule}
+              onUpdateRoster={handleUpdateRoster}
             />
 
             {/* Live Preview of Esdras Bot Message to Topic 23703 */}

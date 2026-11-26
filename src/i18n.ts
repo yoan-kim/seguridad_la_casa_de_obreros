@@ -17,15 +17,72 @@ export type DayOfWeekIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sun, 1 = Mon, ...
 
 export type WeeklySchedule = Record<DayOfWeekIndex, InspectorName>;
 
+export interface DateRosterEntry {
+  dateStr: string;      // YYYY-MM-DD
+  shortDate: string;    // MM/DD
+  dayOfWeekIdx: DayOfWeekIndex;
+  inspector: InspectorName;
+}
+
+/**
+ * 🔐 [Seguridad 보안 당번 명단 | 2026. 11. 25 ~ 12. 08]
+ */
+export const OFFICIAL_DATE_ROSTER: DateRosterEntry[] = [
+  { dateStr: '2026-11-25', shortDate: '11/25', dayOfWeekIdx: 3, inspector: 'Miguel' },
+  { dateStr: '2026-11-26', shortDate: '11/26', dayOfWeekIdx: 4, inspector: 'Daniel' },
+  { dateStr: '2026-11-27', shortDate: '11/27', dayOfWeekIdx: 5, inspector: 'Miguel' },
+  { dateStr: '2026-11-28', shortDate: '11/28', dayOfWeekIdx: 6, inspector: 'Daniela' },
+  { dateStr: '2026-11-29', shortDate: '11/29', dayOfWeekIdx: 0, inspector: 'Ernan' },
+  { dateStr: '2026-11-30', shortDate: '11/30', dayOfWeekIdx: 1, inspector: 'Joselin' },
+  { dateStr: '2026-12-01', shortDate: '12/01', dayOfWeekIdx: 2, inspector: 'Lia' },
+  { dateStr: '2026-12-02', shortDate: '12/02', dayOfWeekIdx: 3, inspector: 'Lucia' },
+  { dateStr: '2026-12-03', shortDate: '12/03', dayOfWeekIdx: 4, inspector: 'Miguel' },
+  { dateStr: '2026-12-04', shortDate: '12/04', dayOfWeekIdx: 5, inspector: 'Selina' },
+  { dateStr: '2026-12-05', shortDate: '12/05', dayOfWeekIdx: 6, inspector: 'Daniel' },
+  { dateStr: '2026-12-06', shortDate: '12/06', dayOfWeekIdx: 0, inspector: 'Daniela' },
+  { dateStr: '2026-12-07', shortDate: '12/07', dayOfWeekIdx: 1, inspector: 'Ernan' },
+  { dateStr: '2026-12-08', shortDate: '12/08', dayOfWeekIdx: 2, inspector: 'Joselin' },
+];
+
 export const DEFAULT_WEEKLY_SCHEDULE: WeeklySchedule = {
-  1: 'Daniel',   // Monday / Lunes
-  2: 'Daniela',  // Tuesday / Martes
-  3: 'Ernan',    // Wednesday / Miércoles
-  4: 'Joselin',  // Thursday / Jueves
-  5: 'Lia',      // Friday / Viernes
-  6: 'Lucia',    // Saturday / Sábado
-  0: 'Miguel',   // Sunday / Domingo (Selina also available in dropdown or custom schedule)
+  3: 'Miguel',   // 11/25 (수 / Mié)
+  4: 'Daniel',   // 11/26 (목 / Jue)
+  5: 'Miguel',   // 11/27 (금 / Vie)
+  6: 'Daniela',  // 11/28 (토 / Sáb)
+  0: 'Ernan',    // 11/29 (일 / Dom)
+  1: 'Joselin',  // 11/30 (월 / Lun)
+  2: 'Lia',      // 12/01 (화 / Mar)
 };
+
+/**
+ * Resolves the assigned inspector for a given YYYY-MM-DD date:
+ * 1. Exact match in the date roster (or custom saved roster)
+ * 2. Continuous 8-person rotation calculation after 2026-11-30 (Joselin -> Lia -> Lucia -> Miguel -> Selina -> Daniel -> Daniela -> Ernan)
+ * 3. Fallback to weekly schedule
+ */
+export function getRecommendedInspectorForDate(
+  dateStr: string,
+  dayIdx: DayOfWeekIndex,
+  roster: DateRosterEntry[],
+  weeklyFallback: WeeklySchedule
+): InspectorName {
+  const exact = roster.find((r) => r.dateStr === dateStr);
+  if (exact) {
+    return exact.inspector;
+  }
+
+  // From 2026-11-28 (Daniela, index 1 in INSPECTORS), the roster follows the exact 8-person cycle:
+  // Daniela(1) -> Ernan(2) -> Joselin(3) -> Lia(4) -> Lucia(5) -> Miguel(6) -> Selina(7) -> Daniel(0)...
+  const anchorDate = new Date('2026-11-28T00:00:00');
+  const targetDate = new Date(`${dateStr}T00:00:00`);
+  const diffDays = Math.round((targetDate.getTime() - anchorDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (!Number.isNaN(diffDays) && diffDays >= 0) {
+    const idx = (1 + diffDays) % INSPECTORS.length;
+    return INSPECTORS[idx];
+  }
+
+  return weeklyFallback[dayIdx] || 'Miguel';
+}
 
 export interface PhotoSlotData {
   dataUrl: string;
