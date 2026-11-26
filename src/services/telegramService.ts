@@ -103,3 +103,91 @@ export async function sendTelegramSummaryReport(
     };
   }
 }
+
+/**
+ * Formats a date range header like "2026. 11. 25 ~ 12. 08" (or "2026. 12. 28 ~ 2027. 01. 05" if year changes)
+ */
+export function formatRosterHeaderDateRange(startDateStr: string, endDateStr: string): string {
+  const [sy, sm, sd] = startDateStr.split('-');
+  const [ey, em, ed] = endDateStr.split('-');
+  if (!sy || !sm || !sd) return '';
+  if (!ey || !em || !ed) return `${sy}. ${sm}. ${sd}`;
+
+  if (sy === ey) {
+    return `${sy}. ${sm}. ${sd} ~ ${em}. ${ed}`;
+  }
+  return `${sy}. ${sm}. ${sd} ~ ${ey}. ${em}. ${ed}`;
+}
+
+/**
+ * Formats the filtered roster entries into the exact Telegram list text requested by the user:
+ *
+ * 🔐 [Seguridad 보안 당번 명단 | 2026. 11. 25 ~ 12. 08]
+ *
+ * • 11/25 (수 / Mié): Miguel
+ * • 11/26 (목 / Jue): Daniel
+ * ...
+ */
+export function buildTelegramRosterListText(
+  entries: import('../i18n').DateRosterEntry[],
+  koDaysShort: readonly string[],
+  esDaysShort: readonly string[]
+): string {
+  if (entries.length === 0) {
+    return '🔐 [Seguridad 보안 당번 명단]';
+  }
+
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  const rangeStr = formatRosterHeaderDateRange(first.dateStr, last.dateStr);
+
+  const header = `🔐 [Seguridad 보안 당번 명단 | ${rangeStr}]`;
+  const bullets = entries.map((entry) => {
+    const koDay = koDaysShort[entry.dayOfWeekIdx];
+    const esDay = esDaysShort[entry.dayOfWeekIdx];
+    return `• ${entry.shortDate} (${koDay} / ${esDay}): ${entry.inspector}`;
+  });
+
+  return `${header}\n\n${bullets.join('\n')}`;
+}
+
+/**
+ * Sends the formatted roster list directly to the Telegram seguridad topic (23703) via the Esdras bot.
+ */
+export async function sendTelegramRosterList(
+  rosterText: string,
+  customConfig = DEFAULT_TELEGRAM_CONFIG
+): Promise<{ ok: boolean; messageId?: number; error?: string }> {
+  const endpoint = `https://api.telegram.org/bot${customConfig.botToken.trim()}/sendMessage`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chat_id: customConfig.chatId.trim(),
+        message_thread_id: Number(customConfig.messageThreadId),
+        text: rosterText,
+        disable_web_page_preview: true,
+      }),
+    });
+
+    const data = await response.json();
+    if (data && data.ok) {
+      return { ok: true, messageId: data.result?.message_id };
+    }
+
+    return {
+      ok: false,
+      error: data?.description || 'Telegram API returned an error',
+    };
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: err?.message || 'Network error while contacting Telegram API',
+    };
+  }
+}
+
